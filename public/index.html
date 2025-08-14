@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ValuePay HTML Demo (Form Submit)</title>
+
+  <!-- 1) Load ValuePay checkout script -->
+  <!-- Live (example taken from your snippet) -->
+  <script
+    src="https://www.valuepayng.com/js/vp-v1.js?v=1.000436060005554300660040066"
+    defer
+  ></script>
+
+  <!-- Optional styling for the demo -->
+  <style>
+    :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    body { margin: 0; background:#0b1220; color:#e6eefc; }
+    .wrap { max-width: 900px; margin: 40px auto; padding: 20px; }
+    .card { background:#0f172a; border:1px solid #1e293b; border-radius: 14px; padding: 22px; }
+    h1,h2 { margin: 0 0 12px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    label { display:block; font-size: 14px; margin-bottom:6px; color:#b8c4e6; }
+    input, select { width:100%; padding:10px 12px; border-radius:10px; background:#0b1220; border:1px solid #22304a; color:#e6eefc; }
+    .row { margin-bottom:14px; }
+    .actions { display:flex; gap:10px; align-items:center; }
+    button { cursor:pointer; border:0; border-radius:12px; padding:12px 16px; background:#2563eb; color:white; font-weight:600; }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    code { background:#0b1220; padding:2px 6px; border-radius:6px; }
+    .muted { color:#94a3b8; font-size:13px; }
+    .badge { font-size:12px; background:#172554; padding:4px 8px; border-radius:999px; border:1px solid #1e3a8a; }
+    .status { margin-top:14px; font-size:14px; white-space:pre-wrap; word-break:break-word; background:#0b1220; border:1px dashed #1e293b; padding:12px; border-radius:10px; min-height:44px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>ValuePay Checkout (Plain HTML)</h1>
+      <p class="muted">
+        This page shows: loading the ValuePay script, collecting customer inputs,
+        generating a <code>transactionRef</code>, and initializing checkout from a form submit.
+      </p>
+
+      <!-- 2) Simple purchase form -->
+      <form id="vpPayForm" autocomplete="on">
+        <div class="grid">
+          <div class="row">
+            <label for="amount">Amount (NGN)</label>
+            <input id="amount" name="amount" type="number" min="50" step="0.01" value="120.00" required />
+          </div>
+
+          <div class="row">
+            <label for="currency">Currency</label>
+            <select id="currency" name="currency">
+              <option value="NGN" selected>NGN</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label for="email">Customer Email</label>
+            <input id="email" name="email" type="email" placeholder="customer@example.com" required />
+          </div>
+
+          <div class="row">
+            <label for="fullName">Customer Full Name</label>
+            <input id="fullName" name="fullName" type="text" placeholder="Jane Doe" required />
+          </div>
+        </div>
+
+        <div class="row">
+          <label>Channels</label>
+          <div class="actions">
+            <label class="badge"><input type="checkbox" name="channels" value="card" checked />&nbsp;card</label>
+            <label class="badge"><input type="checkbox" name="channels" value="transfer" checked />&nbsp;transfer</label>
+            <label class="badge"><input type="checkbox" name="channels" value="qrcode" />&nbsp;qrcode</label>
+            <label class="badge"><input type="checkbox" name="channels" value="ussd" />&nbsp;ussd</label>
+          </div>
+        </div>
+
+        <!-- 3) Optional metadata -->
+        <div class="grid">
+          <div class="row">
+            <label for="linkId">Metadata: linkId</label>
+            <input id="linkId" name="linkId" type="text" placeholder="12345" />
+          </div>
+          <div class="row">
+            <label for="consumer_mac">Metadata: consumer_mac</label>
+            <input id="consumer_mac" name="consumer_mac" type="text" placeholder="92a3-912ba-1192a" />
+          </div>
+        </div>
+
+        <!-- 4) Customised checkout (optional) -->
+        <div class="grid">
+          <div class="row">
+            <label for="title">Checkout Title</label>
+            <input id="title" name="title" type="text" value="Pay MeterToken" />
+          </div>
+          <div class="row">
+            <label for="description">Checkout Description</label>
+            <input id="description" name="description" type="text" value="You are paying MeterToken" />
+          </div>
+        </div>
+
+        <div class="row">
+          <label for="logoLink">Logo URL</label>
+          <input id="logoLink" name="logoLink" type="url" value="https://metertoken.ng/logo.png" />
+        </div>
+
+        <!-- 5) Action -->
+        <div class="actions">
+          <button id="payBtn" type="submit">Pay Now</button>
+          <span class="muted">Public key and redirect are set in script below.</span>
+        </div>
+
+        <!-- Feedback -->
+        <div id="status" class="status"></div>
+      </form>
+    </div>
+
+    <p class="muted" style="margin-top:14px">
+      Tip: Always create the charge server-side and verify the result on your server after redirect/callback.
+    </p>
+  </div>
+
+  <script>
+    // ========= Utility helpers =========
+    function makeRef(len = 16) {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      let out = "";
+      for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+      return out;
+    }
+    function getCheckedChannels() {
+      return Array.from(document.querySelectorAll('input[name="channels"]:checked')).map(i => i.value);
+    }
+    function setStatus(msg, append=false) {
+      const el = document.getElementById("status");
+      el.textContent = append ? (el.textContent + "\n" + msg) : msg;
+    }
+
+    // ========= Configure your integration =========
+    const VP_PUBLIC_KEY = "KP_37a3b7d9d2aa59a682600392e0c26e30ba4c640ed773c4dfd62815492b3f9c6a"; // e.g. KP_7c1400... (use your live/test key)
+    const REDIRECT_URL  = "https://buyquick.ng/"; // where ValuePay will redirect after payment
+
+    // ========= Form submit → open ValuePay Checkout =========
+    document.getElementById("vpPayForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      // Guard: script loaded?
+      if (typeof window.ValuepayCheckout !== "function") {
+        setStatus("❌ ValuePay script not yet loaded. Check network and script URL.");
+        return;
+      }
+
+      // Collect inputs
+      const amount     = parseFloat(document.getElementById("amount").value || "0");
+      const currency   = document.getElementById("currency").value || "NGN";
+      const email      = document.getElementById("email").value;
+      const fullName   = document.getElementById("fullName").value;
+      const channels   = getCheckedChannels();
+      const linkId     = document.getElementById("linkId").value || undefined;
+      const consumerMac= document.getElementById("consumer_mac").value || undefined;
+      const title      = document.getElementById("title").value || undefined;
+      const description= document.getElementById("description").value || undefined;
+      const logoLink   = document.getElementById("logoLink").value || undefined;
+
+      // Minimal client-side validation
+      if (!amount || amount <= 0) return setStatus("❌ Enter a valid amount (greater than 0).");
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setStatus("❌ Enter a valid email.");
+      if (!channels.length) return setStatus("❌ Select at least one channel.");
+
+      // Disable button to prevent double submit
+      const btn = document.getElementById("payBtn");
+      btn.disabled = true; setStatus("Opening checkout…");
+
+      // Compose metadata
+      const metaData = {};
+      if (linkId) metaData.linkId = linkId;
+      if (consumerMac) metaData.consumer_mac = consumerMac;
+
+      // Compose customised checkout
+      const customisedCheckout = {};
+      if (title) customisedCheckout.title = title;
+      if (description) customisedCheckout.description = description;
+      if (logoLink) customisedCheckout.logoLink = logoLink;
+
+      // Initialize checkout (same shape as your React demo)
+      try {
+        window.ValuepayCheckout({
+          public_key: VP_PUBLIC_KEY,
+          transactionRef: makeRef(16),
+          amount,
+          currency,
+          channels,                 // ["card","transfer","qrcode","ussd"]
+          type: "default",
+          redirect_url: REDIRECT_URL,
+          metaData,
+          customer: { email, fullName },
+
+          // Called any time ValuePay has info for you
+          callback: function (payload) {
+            setStatus("callback:\n" + JSON.stringify(payload, null, 2));
+          },
+
+          // When ValuePay reports success in-flow (you STILL verify server-side!)
+          onsuccess: function (payload) {
+            setStatus("✅ Success (client-side):\n" + JSON.stringify(payload, null, 2));
+          },
+
+          // When user closes the modal
+          onclose: function () {
+            setStatus("Checkout closed by user.", true);
+          },
+
+          customisedCheckout
+        });
+      } catch (err) {
+        console.error(err);
+        setStatus("❌ Failed to launch checkout. See console.");
+      } finally {
+        // Re-enable to allow retry if needed
+        btn.disabled = false;
+      }
+    });
+
+    // Optional: Show helpful status once the script is parsed
+    window.addEventListener("load", () => {
+      if (typeof window.ValuepayCheckout === "function") {
+        setStatus("ValuePay script loaded ✔");
+      } else {
+        setStatus("Waiting for ValuePay script to load…");
+      }
+    });
+  </script>
+
+  <!--
+    ===== Notes / Checklist =====
+
+    • Use HTTPS on your site. Browsers can block iframes/popups on mixed content.
+    • Server-side: always create/record an order before opening checkout, and VERIFY the
+      transaction on your backend after redirect / webhook to prevent tampering.
+    • redirect_url should be a page you control; read query params there and call your
+      backend to verify the transaction status.
+    • Prevent double-click: this demo disables the button during init.
+    • CSP: if you use a Content-Security-Policy header, allow 'https://www.valuepayng.com' for script/frame.
+    • Test keys vs live keys: swap VP_PUBLIC_KEY based on environment.
+  -->
+</body>
+</html>
